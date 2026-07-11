@@ -3,7 +3,28 @@
 {% block title %}AutoML Studio{% endblock %}
 
 {% block content %}
-<h1>Build ML models without writing code</h1>
-<p>Upload a CSV, pick a model, get a trained file back.</p>
-<a href="{{ url_for('upload') }}">Get started</a>
+<div class="hero">
+  <div class="badge">✨ No code required</div>
+  <h1>Build ML models<br>without writing code</h1>
+  <p>Upload a dataset, pick a model, and download<br>a trained file.</p>
+  <a href="{{ url_for('upload') }}" class="cta">Get started →</a>
+</div>
+
+<div class="feature-cards">
+  <div class="feature-card">
+    <div class="icon">📤</div>
+    <p class="title">Upload data</p>
+    <p class="desc">CSV or Excel, any size</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">⚙️</div>
+    <p class="title">Configure</p>
+    <p class="desc">Pick target and model</p>
+  </div>
+  <div class="feature-card">
+    <div class="icon">📦</div>
+    <p class="title">Train and export</p>
+    <p class="desc">Get a ready .pkl file</p>
+  </div>
+</div>
 {% endblock %}

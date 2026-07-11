@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block title %}Training - AutoML Studio{% endblock %}
+
+{% block content %}
+<p class="eyebrow">AutoML Studio</p>
+<h1 class="page-title">Your model is training</h1>
+
+<div class="section active" id="training-section" style="text-align:center; padding: 60px 20px;">
+  <div class="spinner"></div>
+  <p style="margin-top: 20px; font-size: 1.1rem;">Sit tight, this may take a moment...</p>
+</div>
+
+<style>
+.spinner {
+  margin: 0 auto;
+  width: 48px;
+  height: 48px;
+  border: 5px solid #e5e5f7;
+  border-top: 5px solid #4f46e5;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Upload - AutoML Studio{% endblock %}
+
+{% block content %}
+<p class="eyebrow">AutoML Studio</p>
+<h1 class="page-title">Build a model</h1>
+
+<div class="progress-bar" id="progressBar">
+  <div class="bar done" data-step="1"></div>
+  <div class="bar" data-step="2"></div>
+  <div class="bar" data-step="3"></div>
+  <div class="bar" data-step="4"></div>
+  <div class="bar" data-step="5"></div>
+</div>
+
+<div class="section active" id="upload-section">
+  <div class="step-header">
+    <div class="step-badge">1</div>
+    <span class="step-title">Upload dataset</span>
+  </div>
+  <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
+  <button onclick="uploadFile()">Upload</button>
+</div>
+
+<div class="section" id="task-section">
+  <div class="step-header">
+    <div class="step-badge">2</div>
+    <span class="step-title">Choose task type</span>
+  </div>
+  <label class="option"><input type="radio" name="task" value="regression"> Regression</label>
+  <label class="option"><input type="radio" name="task" value="classification"> Classification</label>
+  <button onclick="setTask()">Next</button>
+</div>
+
+<div class="section" id="target-section">
+  <div class="step-header">
+    <div class="step-badge">3</div>
+    <span class="step-title">Select target column</span>
+  </div>
+  <select id="targetSelect"></select>
+  <button onclick="setTarget()">Next</button>
+</div>
+
+<div class="section" id="features-section">
+  <div class="step-header">
+    <div class="step-badge">4</div>
+    <span class="step-title">Select features</span>
+  </div>
+  <label class="option"><input type="radio" name="featmode" value="all" checked> Use all columns</label>
+  <label class="option"><input type="radio" name="featmode" value="custom"> Choose specific columns</label>
+  <div class="feature-grid" id="featureCheckboxes" style="display:none;"></div>
+  <button onclick="setFeatures()">Next</button>
+</div>
+
+<div class="section" id="model-section">
+  <div class="step-header">
+    <div class="step-badge">5</div>
+    <span class="step-title">Select model and hyperparameters</span>
+  </div>
+  <select id="modelSelect" onchange="showHyperparams()"></select>
+  <div id="hyperparamFields"></div>
+
+  <div class="hyperparam-row">
+    <label for="testSize">Test sample size</label>
+    <input type="text" id="testSize" placeholder="e.g. 0.2" value="0.2">
+  </div>
+
+  <button onclick="trainModel()">Train model</button>
+</div>
+
+<script>
+let allColumns = [];
+let currentModels = {};
+
+function showSection(id) {
+  document.getElementById(id).classList.add("active");
+  document.getElementById(id).scrollIntoView({ behavior: "smooth" });
+}
+
+function updateProgress(step) {
+  document.querySelectorAll("#progressBar .bar").forEach(bar => {
+    if (parseInt(bar.dataset.step) <= step) bar.classList.add("done");
+  });
+}
+
+async function uploadFile() {
+  const fileInput = document.getElementById("fileInput");
+  if (!fileInput.files.length) return alert("Pehle file select karo");
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  const res = await fetch("/upload", { method: "POST", body: formData });
+  const data = await res.json();
+
+  if (data.error) return alert(data.error);
+
+  allColumns = data.columns;
+  updateProgress(2);
+  showSection("task-section");
+}
+
+async function setTask() {
+  const task = document.querySelector('input[name="task"]:checked');
+  if (!task) return alert("Task type select karo");
+
+  await fetch("/set_task", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ task_type: task.value })
+  });
+
+  const targetSelect = document.getElementById("targetSelect");
+  targetSelect.innerHTML = allColumns.map(c => `<option value="${c}">${c}</option>`).join("");
+  updateProgress(3);
+  showSection("target-section");
+}
+
+async function setTarget() {
+  const target = document.getElementById("targetSelect").value;
+
+  const res = await fetch("/set_target", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target })
+  });
+  const data = await res.json();
+
+  const grid = document.getElementById("featureCheckboxes");
+  grid.innerHTML = data.available_features.map(c =>
+    `<label><input type="checkbox" value="${c}" checked> ${c}</label>`
+  ).join("");
+
+  updateProgress(4);
+  showSection("features-section");
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.name === "featmode") {
+    document.getElementById("featureCheckboxes").style.display =
+      e.target.value === "custom" ? "grid" : "none";
+  }
+});
+
+async function setFeatures() {
+  const mode = document.querySelector('input[name="featmode"]:checked').value;
+  let selected_features = [];
+
+  if (mode === "custom") {
+    selected_features = Array.from(document.querySelectorAll("#featureCheckboxes input:checked"))
+      .map(el => el.value);
+  }
+
+  await fetch("/set_features", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ mode, selected_features })
+  });
+
+  const res = await fetch("/get_models");
+  currentModels = await res.json();
+
+  const modelSelect = document.getElementById("modelSelect");
+  modelSelect.innerHTML = Object.keys(currentModels).map(m =>
+    `<option value="${m}">${m.replace(/_/g, " ")}</option>`
+  ).join("");
+
+  showHyperparams();
+  updateProgress(5);
+  showSection("model-section");
+}
+
+function showHyperparams() {
+  const modelName = document.getElementById("modelSelect").value;
+  const params = currentModels[modelName] || {};
+  const container = document.getElementById("hyperparamFields");
+
+  container.innerHTML = Object.entries(params).map(([key, defaultVal]) => `
+    <div class="hyperparam-row">
+      <label>${key}</label>
+      <input type="text" data-param="${key}" placeholder="default: ${defaultVal}">
+    </div>
+  `).join("");
+}
+
+async function trainModel() {
+  const modelName = document.getElementById("modelSelect").value;
+  const hyperparameters = {};
+
+  document.querySelectorAll("#hyperparamFields input").forEach(input => {
+    if (input.value.trim() !== "") {
+      let val = input.value.trim();
+      if (!isNaN(val)) val = Number(val);
+      hyperparameters[input.dataset.param] = val;
+    }
+  });
+
+  const testSizeInput = document.getElementById("testSize").value.trim();
+  const testSize = testSizeInput === "" ? 0.2 : Number(testSizeInput);
+
+  if (isNaN(testSize) || testSize <= 0 || testSize >= 1) {
+    return alert("Test sample size 0 aur 1 ke beech decimal hona chahiye, jaise 0.2");
+  }
+
+  const res = await fetch("/train", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model_name: modelName, hyperparameters, test_size: testSize })
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    return alert(data.error || "Training request fail ho gaya");
+  }
+
+  // redirect to the training status page
+  window.location.href = "/training";
+}
+</script>
+{% endblock %}
