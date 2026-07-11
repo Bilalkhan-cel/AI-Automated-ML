@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}AutoML Studio{% endblock %}
+
+{% block content %}
+<h1>Build ML models without writing code</h1>
+<p>Upload a CSV, pick a model, get a trained file back.</p>
+<a href="{{ url_for('upload') }}">Get started</a>
+{% endblock %}
