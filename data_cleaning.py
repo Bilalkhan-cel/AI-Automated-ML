@@ -21,5 +21,12 @@ def apply_onehot(df):
     df_encoded=oh.fit_transform(df[cat_col])
     return df_encoded
 
+def apply_standard_scaling(df):
+    num_col=get_num_columns(df)
+    oh=StandardScaler().set_output(transform="pandas")
+    df_encoded=oh.fit_transform(df[num_col])
+    return df_encoded
+
+
     
     
