@@ -68,7 +68,6 @@
 
   <button onclick="trainModel()">Train model</button>
 </div>
-
 <script>
 let allColumns = [];
 let currentModels = {};
@@ -196,25 +195,14 @@ async function trainModel() {
     }
   });
 
-  const testSizeInput = document.getElementById("testSize").value.trim();
-  const testSize = testSizeInput === "" ? 0.2 : Number(testSizeInput);
+  const testSize = parseFloat(document.getElementById("testSize").value) || 0.2;
 
-  if (isNaN(testSize) || testSize <= 0 || testSize >= 1) {
-    return alert("Test sample size 0 aur 1 ke beech decimal hona chahiye, jaise 0.2");
-  }
-
-  const res = await fetch("/train", {
+  await fetch("/train", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model_name: modelName, hyperparameters, test_size: testSize })
   });
 
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    return alert(data.error || "Training request fail ho gaya");
-  }
-
-  // redirect to the training status page
   window.location.href = "/training";
 }
 </script>

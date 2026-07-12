@@ -128,22 +128,28 @@ def get_models():
     response = {name: info["params"] for name, info in models.items()}
     return jsonify(response)
 
+
 @app.route("/train", methods=["POST"])
 def train_model():
     data = request.json
-    model_name = data.get("model_name")
-    hyperparameters = data.get("hyperparameters", {})
 
-    
-    print("Model selected:", model_name)
-    print("Hyperparameters:", hyperparameters)
+    session["training_data"] = {
+        "task_type": session.get("task_type"),
+        "target_column": session.get("target"),
+        "features": session.get("features"),
+        "model_name": data.get("model_name"),
+        "hyperparameters": data.get("hyperparameters", {}),
+        "test_size": data.get("test_size", 0.2),
+        "session_id": session.get("session_id")
+    }
 
-    return jsonify({"status": "received"})
+    return jsonify({"status": "ok"})
+
 
 @app.route("/training")
 def training():
-    return render_template("training.html")
-
+    config = session.get("training_data", {})
+    return render_template("training.html", config=config)
 
 if __name__ == "__main__":
     app.run(debug=True)
