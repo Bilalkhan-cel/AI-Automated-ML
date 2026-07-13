@@ -10,6 +10,8 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
+from data_cleaning import Data_cleaning, sanitize_records
+from model_registry import MODELS
 
 app = Flask(__name__)
 app.secret_key = "your-secret-key"
@@ -17,41 +19,12 @@ app.secret_key = "your-secret-key"
 UPLOAD_FOLDER = "temp_data"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-MODEL_REGISTRY = {
-    "regression": {
-        "linear_regression": {"class": LinearRegression, "params": {}},
-        "random_forest": {"class": RandomForestRegressor, "params": {"n_estimators": 100, "max_depth": None}},
-        "decision_tree": {"class": DecisionTreeRegressor, "params": {"max_depth": None}},
-        "svr": {"class": SVR, "params": {"C": 1.0, "kernel": "rbf"}},
-        "knn": {"class": KNeighborsRegressor, "params": {"n_neighbors": 5}},
-    },
-    "classification": {
-        "logistic_regression": {"class": LogisticRegression, "params": {"C": 1.0, "max_iter": 100}},
-        "random_forest": {"class": RandomForestClassifier, "params": {"n_estimators": 100, "max_depth": None}},
-        "decision_tree": {"class": DecisionTreeClassifier, "params": {"max_depth": None}},
-        "svc": {"class": SVC, "params": {"C": 1.0, "kernel": "rbf"}},
-        "knn": {"class": KNeighborsClassifier, "params": {"n_neighbors": 5}},
-    }
-}
+MODEL_REGISTRY = MODELS
 
 
 @app.route("/")
 def index():
     return render_template("index.html")
-
-import math
-
-def sanitize_records(records):
-    clean = []
-    for row in records:
-        clean_row = {}
-        for k, v in row.items():
-            if isinstance(v, float) and math.isnan(v):
-                clean_row[k] = None
-            else:
-                clean_row[k] = v
-        clean.append(clean_row)
-    return clean
 
 
 @app.route("/upload", methods=["GET", "POST"])
@@ -81,10 +54,7 @@ def upload():
     raw_preview = df.head(5).to_dict(orient="records")
     clean_preview = sanitize_records(raw_preview)
 
-    return jsonify({
-        "columns": df.columns.tolist(),
-        "preview": clean_preview
-    })
+    return jsonify({"columns": df.columns.tolist(), "preview": clean_preview})
 
 
 @app.route("/set_task", methods=["POST"])
@@ -133,15 +103,48 @@ def get_models():
 def train_model():
     data = request.json
 
+    df = pd.read_pickle(os.path.join(UPLOAD_FOLDER, f"{session.get("session_id")}.pkl"))
+    target = session.get("target")
+    test_siz = data.get("test_size", 0.2)
+    features = session.get("features")
+    features = list(features)
+    x_train, x_test, y_train, y_test, pre_processor = Data_cleaning(
+        daf=df, target=target, feature=features, test_size=test_siz
+    )
+    
+    os.makedirs("clean_data", exist_ok=True)
+
+    
+
+    file_path = os.path.join(
+    "clean_data",
+    f"{session['session_id']}.pkl"
+)
+
+    joblib.dump(
+    {
+        "x_train": x_train,
+        "x_test": x_test,
+        "y_train": y_train,
+        "y_test": y_test,
+        "preprocessor": pre_processor
+    },
+    file_path
+    )
+
     session["training_data"] = {
-        "task_type": session.get("task_type"),
-        "target_column": session.get("target"),
-        "features": session.get("features"),
-        "model_name": data.get("model_name"),
-        "hyperparameters": data.get("hyperparameters", {}),
-        "test_size": data.get("test_size", 0.2),
-        "session_id": session.get("session_id")
+        "Task_Type": session.get("task_type"),
+        "Target_Column": session.get("target"),
+        "Features": session.get("features"),
+        "Model_Name": data.get("model_name"),
+        "Hyperparameters": data.get("hyperparameters", {}),
+        "Test_Size": data.get("test_size", 0.2),
+        "Session_id": session.get("session_id"),
+        "X_Train_Shape": x_train.shape,
+        "X_Test_Shape": x_test.shape
     }
+
+    # session['training_data'].task
 
     return jsonify({"status": "ok"})
 
@@ -149,7 +152,20 @@ def train_model():
 @app.route("/training")
 def training():
     config = session.get("training_data", {})
+    file_path = os.path.join(
+    "clean_data",
+    f"{session['session_id']}.pkl"
+)
+
+    data = joblib.load(file_path)
+    x_train = data["x_train"]
+    y_train = data["y_train"]
+    y_test = data["y_test"]
+    x_test = data["x_test"]
+    preprocessor = data["preprocessor"]
+
     return render_template("training.html", config=config)
+
 
 if __name__ == "__main__":
     app.run(debug=True)

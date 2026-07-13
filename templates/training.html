@@ -7,11 +7,13 @@
 <h1 class="page-title">Training summary</h1>
 
 <div class="section active">
-  <p><strong>Task type:</strong> {{ config.task_type }}</p>
-  <p><strong>Target column:</strong> {{ config.target_column }}</p>
-  <p><strong>Features:</strong> {{ config.features | join(", ") }}</p>
-  <p><strong>Model:</strong> {{ config.model_name }}</p>
-  <p><strong>Test size:</strong> {{ config.test_size }}</p>
+  <p><strong>Task type:</strong> {{ config.Task_Type }}</p>
+  <p><strong>Target column:</strong> {{ config.Target_Column }}</p>
+  <p><strong>Features:</strong> {{ config.Features | join(", ") }}</p>
+  <p><strong>Model:</strong> {{ config.Model_Name }}</p>
+  <p><strong>Test size:</strong> {{ config.Test_Size }}</p>
+  <p><strong>X Train size:</strong> {{ config.X_Train_Shape }}</p>
+  <p><strong>X Test size:</strong> {{ config.X_Test_Shape }}</p>
 
   {% if config.hyperparameters %}
     <p><strong>Hyperparameters:</strong></p>
