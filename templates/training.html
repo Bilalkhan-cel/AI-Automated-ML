@@ -6,8 +6,6 @@
 <p class="eyebrow">AutoML Studio</p>
 <h1 class="page-title">Training summary</h1>
 
-
-
 <div class="section active">
   <p><strong>Task type:</strong> {{ config.Task_Type }}</p>
   <p><strong>Target column:</strong> {{ config.Target_Column }}</p>
@@ -44,9 +42,56 @@
       <li><strong>Precision:</strong> {{ "%.2f"|format(metrics.Precision * 100) }}%</li>
       <li><strong>Recall:</strong> {{ "%.2f"|format(metrics.Recall * 100) }}%</li>
       <li><strong>F1 Score:</strong> {{ "%.2f"|format(metrics.F1 * 100) }}%</li>
-      <li><strong>Confusion Matrix:</strong> {{ metrics.Confusion_Matrix }}%</li>
     </ul>
   {% endif %}
 </div>
 
+<div style="text-align: center; margin-top: 22px;">
+  <button id="showVizBtn" class="btn-link" onclick="toggleVisualizations()">See Visualizations →</button>
+</div>
+
+<div class="viz-grid" id="vizSection" style="display: none; margin-top: 24px;">
+  {% if plots.confusion_matrix %}
+  <div class="viz-card">
+    <h3>Confusion Matrix</h3>
+    <img src="data:image/png;base64,{{ plots.confusion_matrix }}">
+  </div>
+  {% endif %}
+
+  {% if plots.actual_vs_predicted %}
+  <div class="viz-card">
+    <h3>Actual vs Predicted</h3>
+    <img src="data:image/png;base64,{{ plots.actual_vs_predicted }}">
+  </div>
+  {% endif %}
+
+  {% if plots.residuals %}
+  <div class="viz-card">
+    <h3>Residual Plot</h3>
+    <img src="data:image/png;base64,{{ plots.residuals }}">
+  </div>
+  {% endif %}
+
+  {% if plots.feature_importance %}
+  <div class="viz-card">
+    <h3>Feature Importance</h3>
+    <img src="data:image/png;base64,{{ plots.feature_importance }}">
+  </div>
+  {% endif %}
+</div>
+
+<script>
+function toggleVisualizations() {
+  const section = document.getElementById("vizSection");
+  const btn = document.getElementById("showVizBtn");
+  const isHidden = section.style.display === "none";
+
+  section.style.display = isHidden ? "grid" : "none";
+  btn.textContent = isHidden ? "Hide Visualizations ↑" : "See Visualizations →";
+
+  if (isHidden) {
+    section.scrollIntoView({ behavior: "smooth" });
+  }
+}
+</script>
 {% endblock %}

@@ -14,13 +14,22 @@
   <div class="bar" data-step="5"></div>
 </div>
 
+
 <div class="section active" id="upload-section">
   <div class="step-header">
     <div class="step-badge">1</div>
     <span class="step-title">Upload dataset</span>
   </div>
   <input type="file" id="fileInput" accept=".csv,.xlsx,.xls">
-  <button onclick="uploadFile()">Upload</button>
+
+  <div class="upload-progress-wrap" id="uploadProgressWrap">
+    <div class="upload-progress-track">
+      <div class="upload-progress-fill" id="uploadProgressFill"></div>
+    </div>
+    <div class="upload-progress-text" id="uploadProgressText">0%</div>
+  </div>
+
+  <button onclick="uploadFile()" id="uploadBtn">Upload</button>
 </div>
 
 <div class="section" id="task-section">
@@ -83,26 +92,66 @@ function updateProgress(step) {
   });
 }
 
-async function uploadFile() {
+function uploadFile() {
   const fileInput = document.getElementById("fileInput");
-  if (!fileInput.files.length) return alert("Pehle file select karo");
+  if (!fileInput.files.length) return alert("Please select a file first");
+
+  const wrap = document.getElementById("uploadProgressWrap");
+  const fill = document.getElementById("uploadProgressFill");
+  const text = document.getElementById("uploadProgressText");
+  const btn = document.getElementById("uploadBtn");
+
+  wrap.classList.add("active");
+  fill.style.width = "0%";
+  text.textContent = "0%";
+  btn.disabled = true;
 
   const formData = new FormData();
   formData.append("file", fileInput.files[0]);
 
-  const res = await fetch("/upload", { method: "POST", body: formData });
-  const data = await res.json();
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/upload");
 
-  if (data.error) return alert(data.error);
+  xhr.upload.onprogress = (e) => {
+    if (e.lengthComputable) {
+      const percent = Math.round((e.loaded / e.total) * 100);
+      fill.style.width = percent + "%";
+      text.textContent = percent + "%";
+    }
+  };
 
-  allColumns = data.columns;
-  updateProgress(2);
-  showSection("task-section");
+  xhr.onload = () => {
+    btn.disabled = false;
+    let data;
+    try {
+      data = JSON.parse(xhr.responseText);
+    } catch {
+      return alert("Upload failed, please try again");
+    }
+
+    if (data.error) {
+      wrap.classList.remove("active");
+      return alert(data.error);
+    }
+
+    text.textContent = "Upload complete";
+    allColumns = data.columns;
+    updateProgress(2);
+    showSection("task-section");
+  };
+
+  xhr.onerror = () => {
+    btn.disabled = false;
+    alert("Upload failed, please check your network");
+  };
+
+  xhr.send(formData);
 }
+
 
 async function setTask() {
   const task = document.querySelector('input[name="task"]:checked');
-  if (!task) return alert("Task type select karo");
+  if (!task) return alert("Please select a task type");
 
   await fetch("/set_task", {
     method: "POST",
@@ -126,20 +175,33 @@ async function setTarget() {
   });
   const data = await res.json();
 
+  if (data.warning) {
+    const proceed = confirm(data.warning + "\n\nDo you still want to continue?");
+    if (!proceed) return;
+  }
+
   const grid = document.getElementById("featureCheckboxes");
+
   grid.innerHTML = data.available_features.map(c =>
     `<label><input type="checkbox" value="${c}" checked> ${c}</label>`
   ).join("");
+
+  // Only show the checkbox grid if "custom" mode is currently selected.
+  // Default mode is "all", so the grid stays hidden until the user switches.
+  toggleFeatureGrid();
 
   updateProgress(4);
   showSection("features-section");
 }
 
-document.addEventListener("change", (e) => {
-  if (e.target.name === "featmode") {
-    document.getElementById("featureCheckboxes").style.display =
-      e.target.value === "custom" ? "grid" : "none";
-  }
+// Keeps the feature checkbox grid in sync with the selected radio option.
+function toggleFeatureGrid() {
+  const mode = document.querySelector('input[name="featmode"]:checked').value;
+  document.getElementById("featureCheckboxes").style.display = (mode === "custom") ? "grid" : "none";
+}
+
+document.querySelectorAll('input[name="featmode"]').forEach(radio => {
+  radio.addEventListener("change", toggleFeatureGrid);
 });
 
 async function setFeatures() {
@@ -197,13 +259,35 @@ async function trainModel() {
 
   const testSize = parseFloat(document.getElementById("testSize").value) || 0.2;
 
-  await fetch("/train", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model_name: modelName, hyperparameters, test_size: testSize })
-  });
+  const overlay = document.getElementById("loadingOverlay");
+  const loadingText = document.getElementById("loadingText");
+  overlay.classList.add("active");
+  loadingText.textContent = "Cleaning and preparing your data...";
 
-  window.location.href = "/training";
+  try {
+    const res = await fetch("/train", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model_name: modelName, hyperparameters, test_size: testSize })
+    });
+
+    if (!res.ok) {
+      overlay.classList.remove("active");
+      alert("Training could not be started. Please check the terminal for errors.");
+      return;
+    }
+
+    loadingText.textContent = "Training your model, please wait...";
+    window.location.href = "/training";
+  } catch (err) {
+    overlay.classList.remove("active");
+    alert("Training could not be started. Please try again.");
+  }
 }
 </script>
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Preparing your data...</div>
+  <div class="loading-subtext">This might take a moment, please don't close the page</div>
+</div>
 {% endblock %}

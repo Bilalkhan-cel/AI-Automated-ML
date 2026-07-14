@@ -15,14 +15,27 @@ from model_registry import MODELS
 from model_traning import Train_model
 from dotenv import load_dotenv
 load_dotenv()
+from visualizations import plot_confusion_matrix, plot_actual_vs_predicted, plot_residuals, plot_feature_importance
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SESSION_KEY")
+app.secret_key = os.getenv("SESSION_KEY") or "dev-secret-key-change-in-production"
 
 UPLOAD_FOLDER = "temp_data"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 MODEL_REGISTRY = MODELS
+
+def validate_task_target(task_type, y):
+    if task_type == "regression":
+        if not pd.api.types.is_numeric_dtype(y):
+            return "This target column has text/category values, which doesn't work well for Regression. You might want Classification instead."
+        return None
+    else:
+        if pd.api.types.is_numeric_dtype(y):
+            is_continuous = pd.api.types.is_float_dtype(y) and not (y.dropna() % 1 == 0).all()
+            if is_continuous or y.nunique() > 20:
+                return "This target column looks continuous (many unique or decimal values), which doesn't work well for Classification. You might want Regression instead."
+        return None
 
 
 @app.route("/")
@@ -76,7 +89,10 @@ def set_target():
     df = pd.read_pickle(os.path.join(UPLOAD_FOLDER, f"{session_id}.pkl"))
     remaining_cols = [c for c in df.columns if c != target]
 
-    return jsonify({"available_features": remaining_cols})
+    task_type = session.get("task_type")
+    warning = validate_task_target(task_type, df[target])
+
+    return jsonify({"available_features": remaining_cols, "warning": warning})
 
 
 @app.route("/set_features", methods=["POST"])
@@ -162,9 +178,9 @@ def train_model():
 def training():
     config = session.get("training_data", {})
     file_path = os.path.join(
-    "clean_data",
-    f"{session['session_id']}.pkl"
-)
+        "clean_data",
+        f"{session['session_id']}.pkl"
+    )
 
     data = joblib.load(file_path)
     x_train = data["x_train"]
@@ -172,16 +188,36 @@ def training():
     y_test = data["y_test"]
     x_test = data["x_test"]
     preprocessor = data["preprocessor"]
-    task=session["training_data"]["Task_Type"]
-    Model_name=session["training_data"]["Model_Name"]
-    
-    model,metrics=Train_model(model_name=Model_name,task_type=task,X_TRAIN=x_train,Y_TRAIN=y_train,X_TEST=x_test,Y_TEST=y_test)
+    task = session["training_data"]["Task_Type"]
+    Model_name = session["training_data"]["Model_Name"]
+
+    model, metrics, y_pred = Train_model(
+        model_name=Model_name, task_type=task,
+        X_TRAIN=x_train, Y_TRAIN=y_train, X_TEST=x_test, Y_TEST=y_test
+    )
+
+    plots = {}
+    if task == "classification":
+        plots["confusion_matrix"] = plot_confusion_matrix(y_test, y_pred)
+        plots["actual_vs_predicted"] = plot_actual_vs_predicted(y_test, y_pred)
+    else:
+        plots["actual_vs_predicted"] = plot_actual_vs_predicted(y_test, y_pred)
+        plots["residuals"] = plot_residuals(y_test, y_pred)
+
     try:
-      os.remove(file_path)
+        feature_names = preprocessor.get_feature_names_out()
+        fi_plot = plot_feature_importance(model, feature_names)
+        if fi_plot:
+            plots["feature_importance"] = fi_plot
+    except Exception:
+        pass
+
+    try:
+        os.remove(file_path)
     except Exception as e:
         return f"Erorr deleting clean data  file {e}"
-        
-    return render_template("training.html", config=config,metrics=metrics)
+
+    return render_template("training.html", config=config, metrics=metrics, plots=plots)
 
 
 if __name__ == "__main__":

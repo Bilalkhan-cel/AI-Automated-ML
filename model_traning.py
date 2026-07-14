@@ -43,7 +43,7 @@ def Train_model(model_name,task_type,X_TRAIN,Y_TRAIN,X_TEST,Y_TEST):
     
     
     
-    return model,results
+    return model,results,pred
     
     
     
