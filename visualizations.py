@@ -61,15 +61,29 @@ def plot_residuals(y_test, y_pred):
     plt.ylabel("Residual")
     plt.title("Residual Plot")
     return save_plot()
+
 def plot_feature_importance(model, feature_names):
     if hasattr(model, "feature_importances_"):
         importance = model.feature_importances_
     elif hasattr(model, "coef_"):
-        importance = abs(model.coef_).flatten()
+        importance = model.coef_
+
+        # ndim tells us how many dimensions the array has.
+        # Binary classification/regression -> coef_ is 1D (shape: n_features)
+        # Multi-class classification -> coef_ is 2D (shape: n_classes x n_features)
+        if importance.ndim == 2:
+            importance = importance.mean(axis=0)  # average across all classes to get a 1D array
+
+        importance = abs(importance)
     else:
         return None
-
+    
+    # Limit the chart to the 15 most important features.
+    # Prevents the plot from becoming cluttered/unreadable when there
+    # are many features (e.g. after one-hot encoding categorical columns)
     top_n = 15
+    # Sort feature importance values in descending order and take the top 15.
+    # argsort() sorts ascending by default, so [::-1] reverses it to descending
     indices = importance.argsort()[::-1][:top_n]
     top_importance = [importance[i] for i in indices]
     top_names = [feature_names[i] for i in indices]
