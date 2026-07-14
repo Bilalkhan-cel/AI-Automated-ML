@@ -46,14 +46,14 @@ MODELS = {
 
 
 
-# from xgboost import XGBRegressor, XGBClassifier
-# from lightgbm import LGBMRegressor, LGBMClassifier
+from xgboost import XGBRegressor, XGBClassifier
+from lightgbm import LGBMRegressor, LGBMClassifier
 
-# MODELS["regression"]["XGboost"] = {
-#     "class": XGBRegressor,
-#     "params": {"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1},
-# }
-# MODELS["classification"]["XGboost"] = {
-#     "class": XGBClassifier,
-#     "params": {"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1},
-#  }
+MODELS["regression"]["XGboost"] = {
+    "class": XGBRegressor,
+    "params": {"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1},
+}
+MODELS["classification"]["XGboost"] = {
+    "class": XGBClassifier,
+    "params": {"n_estimators": 100, "max_depth": 6, "learning_rate": 0.1},
+ }

@@ -6,6 +6,8 @@
 <p class="eyebrow">AutoML Studio</p>
 <h1 class="page-title">Training summary</h1>
 
+
+
 <div class="section active">
   <p><strong>Task type:</strong> {{ config.Task_Type }}</p>
   <p><strong>Target column:</strong> {{ config.Target_Column }}</p>
@@ -16,12 +18,35 @@
   <p><strong>X Test size:</strong> {{ config.X_Test_Shape }}</p>
 
   {% if config.hyperparameters %}
-    <p><strong>Hyperparameters:</strong></p>
+    <h3>Hyperparameters</h3>
     <ul>
       {% for key, value in config.hyperparameters.items() %}
-        <li>{{ key }}: {{ value }}</li>
+        <li><strong>{{ key }}:</strong> {{ value }}</li>
       {% endfor %}
     </ul>
   {% endif %}
+
+  <hr>
+
+  <h3>Model Performance</h3>
+
+  {% if config.Task_Type == "regression" %}
+    <ul>
+      <li><strong>R² Score:</strong> {{ "%.4f"|format(metrics.R2) }}</li>
+      <li><strong>Mean Absolute Error (MAE):</strong> {{ "%.4f"|format(metrics.MAE) }}</li>
+      <li><strong>Mean Squared Error (MSE):</strong> {{ "%.4f"|format(metrics.MSE) }}</li>
+      <li><strong>Root Mean Squared Error (RMSE):</strong> {{ "%.4f"|format(metrics.RMSE) }}</li>
+    </ul>
+
+  {% elif config.Task_Type == "classification" %}
+    <ul>
+      <li><strong>Accuracy:</strong> {{ "%.2f"|format(metrics.Accuracy * 100) }}%</li>
+      <li><strong>Precision:</strong> {{ "%.2f"|format(metrics.Precision * 100) }}%</li>
+      <li><strong>Recall:</strong> {{ "%.2f"|format(metrics.Recall * 100) }}%</li>
+      <li><strong>F1 Score:</strong> {{ "%.2f"|format(metrics.F1 * 100) }}%</li>
+      <li><strong>Confusion Matrix:</strong> {{ metrics.Confusion_Matrix }}%</li>
+    </ul>
+  {% endif %}
 </div>
+
 {% endblock %}

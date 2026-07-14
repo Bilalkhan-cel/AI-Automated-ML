@@ -12,9 +12,12 @@ from sklearn.svm import SVR, SVC
 from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from data_cleaning import Data_cleaning, sanitize_records
 from model_registry import MODELS
+from model_traning import Train_model
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = "your-secret-key"
+app.secret_key = os.getenv("SESSION_KEY")
 
 UPLOAD_FOLDER = "temp_data"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -145,6 +148,12 @@ def train_model():
     }
 
     # session['training_data'].task
+    dele=os.path.join(UPLOAD_FOLDER, f"{session.get("session_id")}.pkl") # deleting the temp data file 
+    try:
+      os.remove(dele)
+    except Exception as e:
+        return f"Erorr deleting temp file {e}"
+    
 
     return jsonify({"status": "ok"})
 
@@ -163,8 +172,16 @@ def training():
     y_test = data["y_test"]
     x_test = data["x_test"]
     preprocessor = data["preprocessor"]
-
-    return render_template("training.html", config=config)
+    task=session["training_data"]["Task_Type"]
+    Model_name=session["training_data"]["Model_Name"]
+    
+    model,metrics=Train_model(model_name=Model_name,task_type=task,X_TRAIN=x_train,Y_TRAIN=y_train,X_TEST=x_test,Y_TEST=y_test)
+    try:
+      os.remove(file_path)
+    except Exception as e:
+        return f"Erorr deleting clean data  file {e}"
+        
+    return render_template("training.html", config=config,metrics=metrics)
 
 
 if __name__ == "__main__":
