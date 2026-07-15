@@ -1,15 +1,9 @@
-from flask import Flask, render_template, request, jsonify, session
+from flask import Flask, render_template, request, jsonify, session , send_file
 import pandas as pd
 import os
 import uuid
+import io
 import joblib
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
-from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
-from sklearn.svm import SVR, SVC
-from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from data_cleaning import Data_cleaning, sanitize_records
 from model_registry import MODELS
 from model_traning import Train_model
@@ -216,9 +210,54 @@ def training():
         os.remove(file_path)
     except Exception as e:
         return f"Erorr deleting clean data  file {e}"
+    
+    os.makedirs("Final_Model", exist_ok=True)
+
+    
+
+    file_path = os.path.join(
+    "Final_Model",
+    f"{session['session_id']}.pkl"
+)
+
+    joblib.dump(
+    {
+        "model": model,
+        "pre_processor": preprocessor
+        
+    },
+    file_path
+    )
+
 
     return render_template("training.html", config=config, metrics=metrics, plots=plots)
 
+@app.route("/download")
+def download():
+    
+    
+    file_path = os.path.join(
+    "Final_Model",
+    f"{session['session_id']}.pkl")
+    
+    
+    data=io.BytesIO()
+    
+    try:
+        with open(file_path, 'rb') as f:
+            data.write(f.read())
+    except:
+        return " You have downloaded your Model "
+        
+    data.seek(0)
+    try:
+        os.remove(file_path)
+    except Exception as e:
+        return f"Erorr deleting clean data  file {e}"
+    
+    
+    
+    return send_file(data,as_attachment=True,mimetype='application/octet-stream',download_name="Model.pkl")
 
 if __name__ == "__main__":
     app.run(debug=True)
